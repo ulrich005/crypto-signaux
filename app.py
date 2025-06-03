@@ -66,21 +66,7 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
         if pd.isna(rsi) or pd.isna(macd) or pd.isna(ema12) or pd.isna(ema26):
             return "HOLD"
 
-        if rsi < 30 and macd > 0 and ema12 > ema26:
-            return "BUY"
-        elif rsi > 70 and macd < 0 and ema12 < ema26:
-            return "SELL"
-        else:
-            return "HOLD"
-    except Exception:
-        return "HOLD"
-
-        if rsi < 30 and macd > 0 and ema12 > ema26:
-            return "BUY"
-        elif rsi > 70 and macd < 0 and ema12 < ema26:
-            return "SELL"
-        else:
-            return "HOLD"
+        
     except Exception:
         return "HOLD"
 
