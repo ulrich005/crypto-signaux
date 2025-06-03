@@ -57,13 +57,22 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     
 
     def decision(row):
-    try:
-        rsi = row['rsi'].item() if hasattr(row['rsi'], 'item') else row['rsi']
-        macd = row['macd'].item() if hasattr(row['macd'], 'item') else row['macd']
-        ema12 = row['ema_12'].item() if hasattr(row['ema_12'], 'item') else row['ema_12']
-        ema26 = row['ema_26'].item() if hasattr(row['ema_26'], 'item') else row['ema_26']
+        try:
+            rsi = row['rsi'].item() if hasattr(row['rsi'], 'item') else row['rsi']
+            macd = row['macd'].item() if hasattr(row['macd'], 'item') else row['macd']
+            ema12 = row['ema_12'].item() if hasattr(row['ema_12'], 'item') else row['ema_12']
+            ema26 = row['ema_26'].item() if hasattr(row['ema_26'], 'item') else row['ema_26']
 
-        if pd.isna(rsi) or pd.isna(macd) or pd.isna(ema12) or pd.isna(ema26):
+            if pd.isna(rsi) or pd.isna(macd) or pd.isna(ema12) or pd.isna(ema26):
+                return "HOLD"
+
+            if rsi < 30 and macd > 0 and ema12 > ema26:
+                return "BUY"
+            elif rsi > 70 and macd < 0 and ema12 < ema26:
+                return "SELL"
+            else:
+                return "HOLD"
+        except Exception:
             return "HOLD"
 
         if rsi < 30 and macd > 0 and ema12 > ema26:
