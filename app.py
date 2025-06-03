@@ -23,7 +23,7 @@ end_date = st.sidebar.date_input("Date de fin", datetime(2025, 6, 2))
 signal_filter = st.sidebar.radio("Filtrer les signaux", ["Tous", "Buy", "Sell"])
 
 if st.sidebar.button("🔄 Actualiser les signaux"):
-    df = yf.download(ticker, start=start_date, end=end_date, interval='1h')[['Close']].copy()
+    df = yf.download(ticker, start=start_date, end=end_date, interval='1d')[['Close']].copy()
     if df.empty:
         st.error("Aucune donnée disponible pour cette période.")
         st.stop()
@@ -31,8 +31,9 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     close_series = pd.Series(df['Close'].values.flatten(), index=df.index)
 
     df['rsi'] = ta.momentum.RSIIndicator(close=close_series).rsi()
-    df['macd'] = ta.trend.MACD(close=close_series).macd()
-    df['macd_signal'] = ta.trend.MACD(close=close_series).macd_signal()
+    macd = ta.trend.MACD(close=close_series)
+    df['macd'] = macd.macd()
+    df['macd_signal'] = macd.macd_signal()
     df['sma'] = ta.trend.SMAIndicator(close=close_series, window=14).sma_indicator()
     df['ema_12'] = ta.trend.EMAIndicator(close=close_series, window=12).ema_indicator()
     df['ema_26'] = ta.trend.EMAIndicator(close=close_series, window=26).ema_indicator()
@@ -45,9 +46,9 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     df.dropna(inplace=True)
 
     df['signal'] = 'Hold'
-
     buy_prices = []
     sell_prices = []
+
     for i in range(2, len(df)):
         if close_series.iloc[i] > close_series.iloc[i-1] and close_series.iloc[i-1] > close_series.iloc[i-2]:
             df.iloc[i, df.columns.get_loc('signal')] = 'Buy'
@@ -93,4 +94,5 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
 
     csv = df.to_csv().encode('utf-8')
     st.download_button("📥 Télécharger les données", csv, f"{ticker}_signaux.csv", "text/csv")
+
 
