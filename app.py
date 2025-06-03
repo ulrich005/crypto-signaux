@@ -88,21 +88,26 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
 
     st.subheader("💰 Résumé des gains/pertes théoriques")
     if buy_prices and sell_prices:
-        # Couper à la taille la plus courte
         trade_count = min(len(buy_prices), len(sell_prices))
         paired = zip(buy_prices[:trade_count], sell_prices[:trade_count])
         profits = [sell - buy for buy, sell in paired]
         total_profit = sum(profits)
-        average_profit = total_profit / len(profits) if profits else 0
+        average_profit = total_profit / len(profits) if profits else None
 
         st.write(f"Nombre de trades : {len(profits)}")
-        st.write(f"Gains/Pertes cumulés : {total_profit:.2f} $")
-        st.write(f"Rendement moyen par trade : {average_profit:.2f} $")
+
+        if isinstance(total_profit, (int, float)):
+            st.write(f"Gains/Pertes cumulés : {total_profit:.2f} $")
+        else:
+            st.write("Gains/Pertes cumulés : Données indisponibles")
+
+        if isinstance(average_profit, (int, float)):
+            st.write(f"Rendement moyen par trade : {average_profit:.2f} $")
+        else:
+            st.write("Rendement moyen par trade : Données indisponibles")
     else:
         st.info("Pas assez de signaux Buy/Sell pour calculer les gains/pertes.")
 
     csv = df.to_csv().encode('utf-8')
     st.download_button("📥 Télécharger les données", csv, f"{ticker}_signaux.csv", "text/csv")
-
-
 
