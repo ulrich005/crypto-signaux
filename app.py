@@ -62,11 +62,12 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     st.title(f"📊 {crypto_name} – Analyse Technique")
 
     st.subheader("📋 Données techniques récentes")
+    filtered_df = df.copy()
     if signal_filter != "Tous":
-        df = df[df['signal'] == signal_filter]
+        filtered_df = filtered_df[filtered_df['signal'] == signal_filter]
 
-    st.dataframe(df[['Close', 'rsi', 'macd', 'sma', 'ema_12', 'ema_26',
-                     'bb_upper', 'bb_lower', 'pct_change_3d', 'signal']].tail(10))
+    st.dataframe(filtered_df[['Close', 'rsi', 'macd', 'sma', 'ema_12', 'ema_26',
+                              'bb_upper', 'bb_lower', 'pct_change_3d', 'signal']].tail(10))
 
     fig, ax = plt.subplots(figsize=(14, 6))
     ax.plot(df.index, df['Close'], label='Clôture', color='blue')
@@ -85,13 +86,15 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     ax.grid(True)
     st.pyplot(fig)
 
+    st.subheader("💰 Résumé des gains/pertes théoriques")
     if buy_prices and sell_prices:
-        paired = zip(buy_prices[:len(sell_prices)], sell_prices)
+        # Couper à la taille la plus courte
+        trade_count = min(len(buy_prices), len(sell_prices))
+        paired = zip(buy_prices[:trade_count], sell_prices[:trade_count])
         profits = [sell - buy for buy, sell in paired]
         total_profit = sum(profits)
         average_profit = total_profit / len(profits) if profits else 0
 
-        st.subheader("💰 Résumé des gains/pertes théoriques")
         st.write(f"Nombre de trades : {len(profits)}")
         st.write(f"Gains/Pertes cumulés : {total_profit:.2f} $")
         st.write(f"Rendement moyen par trade : {average_profit:.2f} $")
@@ -100,5 +103,6 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
 
     csv = df.to_csv().encode('utf-8')
     st.download_button("📥 Télécharger les données", csv, f"{ticker}_signaux.csv", "text/csv")
+
 
 
