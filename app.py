@@ -54,16 +54,29 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
         elif close_series.iloc[i] < close_series.iloc[i-1] and close_series.iloc[i-1] < close_series.iloc[i-2]:
             df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
 
+    
+
     def decision(row):
-        if row['rsi'] < 30 and row['macd'] > 0 and row['ema_12'] > row['ema_26']:
+    try:
+        rsi = row['rsi'].item() if hasattr(row['rsi'], 'item') else row['rsi']
+        macd = row['macd'].item() if hasattr(row['macd'], 'item') else row['macd']
+        ema12 = row['ema_12'].item() if hasattr(row['ema_12'], 'item') else row['ema_12']
+        ema26 = row['ema_26'].item() if hasattr(row['ema_26'], 'item') else row['ema_26']
+
+        if pd.isna(rsi) or pd.isna(macd) or pd.isna(ema12) or pd.isna(ema26):
+            return "HOLD"
+
+        if rsi < 30 and macd > 0 and ema12 > ema26:
             return "BUY"
-        elif row['rsi'] > 70 and row['macd'] < 0 and row['ema_12'] < row['ema_26']:
+        elif rsi > 70 and macd < 0 and ema12 < ema26:
             return "SELL"
         else:
             return "HOLD"
+    except Exception as e:
+        return "HOLD"
 
     last_row = df.iloc[-1]
-    signal = decision(last_row)
+signal = decision(last_row)
 
     st.title(f"📊 {crypto_name} – Analyse Technique")
     if signal == "BUY":
