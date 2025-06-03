@@ -27,7 +27,7 @@ signal_filter = st.sidebar.radio("Filtrer les signaux", ["Tous", "Buy", "Sell"])
 
 # Bouton d'actualisation
 if st.sidebar.button("🔄 Actualiser les signaux"):
-    df = yf.download(ticker, start=start_date, end=end_date)[['Close']].copy()
+    df = yf.download(ticker, start=start_date, end=end_date, interval='1h')[['Close']].copy()
     if df.empty:
         st.error("Aucune donnée disponible pour cette période.")
         st.stop()
@@ -36,6 +36,7 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
 
     df['rsi'] = ta.momentum.RSIIndicator(close=close_series).rsi()
     df['macd'] = ta.trend.MACD(close=close_series).macd()
+    df['macd_signal'] = ta.trend.MACD(close=close_series).macd_signal()
     df['sma'] = ta.trend.SMAIndicator(close=close_series, window=14).sma_indicator()
     df['ema_12'] = ta.trend.EMAIndicator(close=close_series, window=12).ema_indicator()
     df['ema_26'] = ta.trend.EMAIndicator(close=close_series, window=26).ema_indicator()
@@ -47,27 +48,31 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     df['pct_change_3d'] = df['Close'].pct_change(periods=3) * 100
     df.dropna(inplace=True)
 
-    df['signal'] = 'Hold'
-    buy_prices = []
-    sell_prices = []
+    # Nouveau système de signaux intelligents
+    def get_signal(row):
+        if (
+            row['ema_12'] > row['ema_26'] and
+            row['rsi'] < 35 and
+            row['macd'] > row['macd_signal']
+        ):
+            return 'Buy'
+        elif (
+            row['ema_12'] < row['ema_26'] and
+            row['rsi'] > 65 and
+            row['macd'] < row['macd_signal']
+        ):
+            return 'Sell'
+        return 'Hold'
 
-    for i in range(2, len(df)):
-        if close_series.iloc[i] > close_series.iloc[i-1] and close_series.iloc[i-1] > close_series.iloc[i-2]:
-            df.iloc[i, df.columns.get_loc('signal')] = 'Buy'
-            buy_prices.append(df['Close'].iloc[i])
-        elif close_series.iloc[i] < close_series.iloc[i-1] and close_series.iloc[i-1] < close_series.iloc[i-2]:
-            df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
-            sell_prices.append(df['Close'].iloc[i])
+    df['signal'] = df.apply(get_signal, axis=1)
 
     st.title(f"📊 {crypto_name} – Analyse Technique")
 
     st.subheader("📋 Données techniques récentes")
-    filtered_df = df.copy()
     if signal_filter != "Tous":
-        filtered_df = filtered_df[filtered_df['signal'] == signal_filter]
+        df = df[df['signal'] == signal_filter]
 
-    st.dataframe(filtered_df[['Close', 'rsi', 'macd', 'sma', 'ema_12', 'ema_26',
-                              'bb_upper', 'bb_lower', 'pct_change_3d', 'signal']].tail(10))
+    st.dataframe(df[['Close', 'rsi', 'macd', 'macd_signal', 'sma', 'ema_12', 'ema_26', 'bb_upper', 'bb_lower', 'pct_change_3d', 'signal']].tail(20))
 
     fig, ax = plt.subplots(figsize=(14, 6))
     ax.plot(df.index, df['Close'], label='Clôture', color='blue')
@@ -75,10 +80,8 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     ax.plot(df.index, df['ema_26'], label='EMA 26', linestyle='--', color='red')
     ax.plot(df.index, df['bb_upper'], label='Bollinger Haut', linestyle=':', color='gray')
     ax.plot(df.index, df['bb_lower'], label='Bollinger Bas', linestyle=':', color='gray')
-    ax.scatter(df[df['signal'] == 'Buy'].index, df[df['signal'] == 'Buy']['Close'],
-               label='Buy', marker='^', color='green')
-    ax.scatter(df[df['signal'] == 'Sell'].index, df[df['signal'] == 'Sell']['Close'],
-               label='Sell', marker='v', color='red')
+    ax.scatter(df[df['signal'] == 'Buy'].index, df[df['signal'] == 'Buy']['Close'], label='Buy', marker='^', color='green')
+    ax.scatter(df[df['signal'] == 'Sell'].index, df[df['signal'] == 'Sell']['Close'], label='Sell', marker='v', color='red')
     ax.set_title(f"Graphique indicateurs – {crypto_name}")
     ax.set_xlabel("Date")
     ax.set_ylabel("Prix ($)")
@@ -86,25 +89,17 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     ax.grid(True)
     st.pyplot(fig)
 
-    st.subheader("💰 Résumé des gains/pertes théoriques")
-    if buy_prices and sell_prices:
-        trade_count = min(len(buy_prices), len(sell_prices))
-        paired = zip(buy_prices[:trade_count], sell_prices[:trade_count])
-        profits = [sell - buy for buy, sell in paired]
-        total_profit = sum(profits)
-        average_profit = total_profit / len(profits) if profits else None
-
+    # Calcul des gains/pertes
+    buy_prices = df[df['signal'] == 'Buy']['Close'].tolist()
+    sell_prices = df[df['signal'] == 'Sell']['Close'].tolist()
+    paired_trades = zip(buy_prices[:len(sell_prices)], sell_prices)
+    profits = [sell - buy for buy, sell in paired_trades]
+    total_profit = sum(profits)
+    if profits:
+        st.subheader("💰 Résumé des gains/pertes théoriques")
         st.write(f"Nombre de trades : {len(profits)}")
-
-        if isinstance(total_profit, (int, float)):
-            st.write(f"Gains/Pertes cumulés : {total_profit:.2f} $")
-        else:
-            st.write("Gains/Pertes cumulés : Données indisponibles")
-
-        if isinstance(average_profit, (int, float)):
-            st.write(f"Rendement moyen par trade : {average_profit:.2f} $")
-        else:
-            st.write("Rendement moyen par trade : Données indisponibles")
+        st.write(f"Gains/Pertes cumulés : {total_profit:.2f} $")
+        st.write(f"Rendement moyen par trade : {total_profit / len(profits):.2f} $")
     else:
         st.info("Pas assez de signaux Buy/Sell pour calculer les gains/pertes.")
 
