@@ -75,6 +75,15 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     except Exception:
         return "HOLD"
 
+        if rsi < 30 and macd > 0 and ema12 > ema26:
+            return "BUY"
+        elif rsi > 70 and macd < 0 and ema12 < ema26:
+            return "SELL"
+        else:
+            return "HOLD"
+    except Exception:
+        return "HOLD"
+
     last_row = df.iloc[-1]
     signal = decision(last_row)
 
