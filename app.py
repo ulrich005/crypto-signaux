@@ -101,3 +101,4 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     csv = df.to_csv().encode('utf-8')
     st.download_button("📥 Télécharger les données", csv, f"{ticker}_signaux.csv", "text/csv")
 
+
