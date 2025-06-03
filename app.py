@@ -8,7 +8,7 @@ from datetime import datetime
 # Configuration Streamlit
 st.set_page_config(page_title="Crypto Signal App", layout="wide")
 
-# Liste des 20 cryptos populaires
+# Liste des cryptos
 crypto_options = {
     'Bitcoin (BTC)': 'BTC-USD',
     'Ethereum (ETH)': 'ETH-USD',
@@ -17,7 +17,7 @@ crypto_options = {
     'Dogecoin (DOGE)': 'DOGE-USD'
 }
 
-# Sidebar inputs
+# Sidebar
 st.sidebar.header("Paramètres")
 crypto_name = st.sidebar.selectbox("Choisir une crypto", list(crypto_options.keys()))
 ticker = crypto_options[crypto_name]
@@ -25,7 +25,7 @@ start_date = st.sidebar.date_input("Date de début", pd.to_datetime("2023-01-01"
 end_date = st.sidebar.date_input("Date de fin", datetime(2025, 6, 2))
 signal_filter = st.sidebar.radio("Filtrer les signaux", ["Tous", "Buy", "Sell"])
 
-# Actualisation sur bouton
+# Bouton d'actualisation
 if st.sidebar.button("🔄 Actualiser les signaux"):
     df = yf.download(ticker, start=start_date, end=end_date)[['Close']].copy()
     if df.empty:
@@ -44,6 +44,7 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     df['bb_upper'] = bb.bollinger_hband()
     df['bb_lower'] = bb.bollinger_lband()
     df['bb_mavg'] = bb.bollinger_mavg()
+    df['pct_change_3d'] = df['Close'].pct_change(periods=3) * 100
     df.dropna(inplace=True)
 
     df['signal'] = 'Hold'
@@ -64,23 +65,22 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
         else:
             return "HOLD"
 
-    signal = decision({
-        'rsi': float(df['rsi'].iloc[-1]),
-        'macd': float(df['macd'].iloc[-1]),
-        'ema_12': float(df['ema_12'].iloc[-1]),
-        'ema_26': float(df['ema_26'].iloc[-1])
-    })
+    last_row = df.iloc[-1]
+    signal = decision(last_row)
 
-    st.title(f"📊 Recommandation de trading pour {crypto_name}")
+    st.title(f"📊 {crypto_name} – Analyse Technique")
     if signal == "BUY":
-        st.success(f"📈 Signal actuel : {signal} – Conditions favorables à l'achat.")
+        st.success(f"📈 Signal actuel : {signal} – Bon moment pour acheter.")
     elif signal == "SELL":
-        st.error(f"📉 Signal actuel : {signal} – Risque élevé, possible retournement.")
+        st.error(f"📉 Signal actuel : {signal} – Risque de baisse.")
     else:
-        st.warning(f"⏸ Signal actuel : {signal} – Attendre confirmation.")
+        st.warning(f"⏸ Signal actuel : {signal} – Attente ou consolidation.")
+
+    trend = "📈 Tendance haussière" if last_row['ema_12'] > last_row['ema_26'] else "📉 Tendance baissière"
+    st.markdown(f"### {trend}")
 
     st.subheader("📋 Données techniques récentes")
-    st.dataframe(df[['Close', 'rsi', 'macd', 'sma', 'ema_12', 'ema_26', 'bb_upper', 'bb_lower', 'signal']].tail(10))
+    st.dataframe(df[['Close', 'rsi', 'macd', 'sma', 'ema_12', 'ema_26', 'bb_upper', 'bb_lower', 'pct_change_3d', 'signal']].tail(10))
 
     fig, ax = plt.subplots(figsize=(14, 6))
     ax.plot(df.index, df['Close'], label='Clôture', color='blue')
@@ -90,7 +90,7 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     ax.plot(df.index, df['bb_lower'], label='Bollinger Bas', linestyle=':', color='gray')
     ax.scatter(df[df['signal'] == 'Buy'].index, df[df['signal'] == 'Buy']['Close'], label='Buy', marker='^', color='green')
     ax.scatter(df[df['signal'] == 'Sell'].index, df[df['signal'] == 'Sell']['Close'], label='Sell', marker='v', color='red')
-    ax.set_title(f"Graphique avec indicateurs pour {ticker}")
+    ax.set_title(f"Graphique indicateurs – {crypto_name}")
     ax.set_xlabel("Date")
     ax.set_ylabel("Prix ($)")
     ax.legend()
@@ -98,4 +98,4 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     st.pyplot(fig)
 
     csv = df.to_csv().encode('utf-8')
-    st.download_button("📥 Télécharger CSV", csv, f"{ticker}_signaux.csv", "text/csv")
+    st.download_button("📥 Télécharger les données", csv, f"{ticker}_signaux.csv", "text/csv")
