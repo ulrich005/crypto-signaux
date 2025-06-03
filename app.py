@@ -48,8 +48,6 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     df.dropna(inplace=True)
 
     df['signal'] = 'Hold'
-    
-            sell_prices.append(df['Close'].iloc[i])
 
 buy_prices = []
 sell_prices = []
@@ -58,8 +56,8 @@ for i in range(2, len(df)):
         df.iloc[i, df.columns.get_loc('signal')] = 'Buy'
         buy_prices.append(df['Close'].iloc[i])
     elif close_series.iloc[i] < close_series.iloc[i-1] and close_series.iloc[i-1] < close_series.iloc[i-2]:
-                sell_prices.append(df['Close'].iloc[i])
-            df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
+        df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
+        sell_prices.append(df['Close'].iloc[i])
 
     
 
