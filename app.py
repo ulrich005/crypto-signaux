@@ -31,10 +31,10 @@ if df.empty:
     st.error("Aucune donnée disponible pour cette période.")
     st.stop()
 
-# 🔧 Correction ici : convertir en Series 1D
+# Sélectionner la série de clôture (corrigé pour éviter erreur 1D)
 close_series = df[['Close']].squeeze()
 
-# Ajouter les indicateurs
+# Ajouter les indicateurs techniques
 df['rsi'] = ta.momentum.RSIIndicator(close=close_series).rsi()
 df['macd'] = ta.trend.MACD(close=close_series).macd()
 df['sma'] = ta.trend.SMAIndicator(close=close_series, window=14).sma_indicator()
@@ -43,21 +43,21 @@ df.dropna(inplace=True)
 # Générer les signaux
 df['signal'] = 'Hold'
 for i in range(2, len(df)):
-    if df['Close'].iloc[i] > df['Close'].iloc[i-1] > df['Close'].iloc[i-2]:
+    if df['Close'].iloc[i] > df['Close'].iloc[i-1] and df['Close'].iloc[i-1] > df['Close'].iloc[i-2]:
         df.iloc[i, df.columns.get_loc('signal')] = 'Buy'
-    elif df['Close'].iloc[i] < df['Close'].iloc[i-1] < df['Close'].iloc[i-2]:
+    elif df['Close'].iloc[i] < df['Close'].iloc[i-1] and df['Close'].iloc[i-1] < df['Close'].iloc[i-2]:
         df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
 
-# Filtrer selon le signal choisi
+# Appliquer le filtre de signal
 if signal_filter != "Tous":
     df = df[df['signal'] == signal_filter]
 
-# Affichage
+# Affichage de la table
 st.title(f"📈 Signaux de trading : {crypto_name} ({ticker})")
 st.write(f"Période sélectionnée : {start_date} → {end_date}")
 st.dataframe(df[['Close', 'rsi', 'macd', 'sma', 'signal']].tail(10))
 
-# Graphique
+# Graphique des prix avec signaux
 fig, ax = plt.subplots(figsize=(14, 5))
 ax.plot(df.index, df['Close'], label='Prix de clôture', color='blue')
 ax.scatter(df[df['signal'] == 'Buy'].index, df[df['signal'] == 'Buy']['Close'], label='Buy', marker='^', color='green')
@@ -69,6 +69,7 @@ ax.legend()
 ax.grid(True)
 st.pyplot(fig)
 
-# Bouton de téléchargement CSV
+# Bouton de téléchargement
 csv = df.to_csv().encode('utf-8')
 st.download_button("📥 Télécharger CSV", csv, f"{ticker}_signaux.csv", "text/csv")
+
