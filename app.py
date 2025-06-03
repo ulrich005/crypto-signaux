@@ -45,7 +45,7 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     df['pct_change_3d'] = df['Close'].pct_change(periods=3) * 100
     df.dropna(inplace=True)
 
-    # === STRATÉGIE DE TRADING INTELLIGENTE ===
+    # STRATÉGIE INTELLIGENTE
     def get_smart_signal(row):
         if (
             row['ema_12'] > row['ema_26'] and
@@ -61,9 +61,12 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
             return 'Sell'
         return 'Hold'
 
-    df['signal'] = df.apply(get_smart_signal, axis=1)
+    # Appliquer la stratégie sans erreur
+    df['signal'] = 'Hold'
+    df_valid = df.dropna(subset=['ema_12', 'ema_26', 'rsi', 'macd', 'macd_signal'])
+    df.loc[df_valid.index, 'signal'] = df_valid.apply(get_smart_signal, axis=1)
 
-    # CALCUL DES PROFITS
+    # Calcul des profits
     buy_prices = []
     sell_prices = []
     for i in range(len(df)):
@@ -78,7 +81,8 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     if signal_filter != "Tous":
         df = df[df['signal'] == signal_filter]
 
-    st.dataframe(df[['Close', 'rsi', 'macd', 'macd_signal', 'sma', 'ema_12', 'ema_26', 'bb_upper', 'bb_lower', 'pct_change_3d', 'signal']].tail(20))
+    st.dataframe(df[['Close', 'rsi', 'macd', 'macd_signal', 'sma', 'ema_12', 'ema_26',
+                     'bb_upper', 'bb_lower', 'pct_change_3d', 'signal']].tail(20))
 
     fig, ax = plt.subplots(figsize=(14, 6))
     ax.plot(df.index, df['Close'], label='Clôture', color='blue')
@@ -86,8 +90,10 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     ax.plot(df.index, df['ema_26'], label='EMA 26', linestyle='--', color='red')
     ax.plot(df.index, df['bb_upper'], label='Bollinger Haut', linestyle=':', color='gray')
     ax.plot(df.index, df['bb_lower'], label='Bollinger Bas', linestyle=':', color='gray')
-    ax.scatter(df[df['signal'] == 'Buy'].index, df[df['signal'] == 'Buy']['Close'], label='Buy', marker='^', color='green')
-    ax.scatter(df[df['signal'] == 'Sell'].index, df[df['signal'] == 'Sell']['Close'], label='Sell', marker='v', color='red')
+    ax.scatter(df[df['signal'] == 'Buy'].index, df[df['signal'] == 'Buy']['Close'],
+               label='Buy', marker='^', color='green')
+    ax.scatter(df[df['signal'] == 'Sell'].index, df[df['signal'] == 'Sell']['Close'],
+               label='Sell', marker='v', color='red')
     ax.set_title(f"Graphique indicateurs – {crypto_name}")
     ax.set_xlabel("Date")
     ax.set_ylabel("Prix ($)")
