@@ -66,19 +66,16 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
         if pd.isna(rsi) or pd.isna(macd) or pd.isna(ema12) or pd.isna(ema26):
             return "HOLD"
 
-        
-    except Exception:
-        return "HOLD"
-
         if rsi < 30 and macd > 0 and ema12 > ema26:
             return "BUY"
         elif rsi > 70 and macd < 0 and ema12 < ema26:
             return "SELL"
         else:
             return "HOLD"
-    
+    except Exception:
+        return "HOLD"
 
-                last_row = df.iloc[-1]
+    last_row = df.iloc[-1]
     signal = decision(last_row)
 
     st.title(f"📊 {crypto_name} – Analyse Technique")
@@ -115,3 +112,4 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
 
     csv = df.to_csv().encode('utf-8')
     st.download_button("📥 Télécharger les données", csv, f"{ticker}_signaux.csv", "text/csv")
+
