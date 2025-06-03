@@ -5,10 +5,8 @@ import matplotlib.pyplot as plt
 import ta
 from datetime import datetime
 
-# Configuration Streamlit
 st.set_page_config(page_title="Crypto Signal App", layout="wide")
 
-# Liste des cryptos
 crypto_options = {
     'Bitcoin (BTC)': 'BTC-USD',
     'Ethereum (ETH)': 'ETH-USD',
@@ -17,7 +15,6 @@ crypto_options = {
     'Dogecoin (DOGE)': 'DOGE-USD'
 }
 
-# Sidebar
 st.sidebar.header("Paramètres")
 crypto_name = st.sidebar.selectbox("Choisir une crypto", list(crypto_options.keys()))
 ticker = crypto_options[crypto_name]
@@ -25,7 +22,6 @@ start_date = st.sidebar.date_input("Date de début", pd.to_datetime("2023-01-01"
 end_date = st.sidebar.date_input("Date de fin", datetime(2025, 6, 2))
 signal_filter = st.sidebar.radio("Filtrer les signaux", ["Tous", "Buy", "Sell"])
 
-# Bouton d'actualisation
 if st.sidebar.button("🔄 Actualiser les signaux"):
     df = yf.download(ticker, start=start_date, end=end_date, interval='1h')[['Close']].copy()
     if df.empty:
@@ -48,23 +44,17 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     df['pct_change_3d'] = df['Close'].pct_change(periods=3) * 100
     df.dropna(inplace=True)
 
-    # Nouveau système de signaux intelligents
-    def get_signal(row):
-        if (
-            row['ema_12'] > row['ema_26'] and
-            row['rsi'] < 35 and
-            row['macd'] > row['macd_signal']
-        ):
-            return 'Buy'
-        elif (
-            row['ema_12'] < row['ema_26'] and
-            row['rsi'] > 65 and
-            row['macd'] < row['macd_signal']
-        ):
-            return 'Sell'
-        return 'Hold'
+    df['signal'] = 'Hold'
 
-    df['signal'] = df.apply(get_signal, axis=1)
+    buy_prices = []
+    sell_prices = []
+    for i in range(2, len(df)):
+        if close_series.iloc[i] > close_series.iloc[i-1] and close_series.iloc[i-1] > close_series.iloc[i-2]:
+            df.iloc[i, df.columns.get_loc('signal')] = 'Buy'
+            buy_prices.append(df['Close'].iloc[i])
+        elif close_series.iloc[i] < close_series.iloc[i-1] and close_series.iloc[i-1] < close_series.iloc[i-2]:
+            df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
+            sell_prices.append(df['Close'].iloc[i])
 
     st.title(f"📊 {crypto_name} – Analyse Technique")
 
@@ -89,17 +79,15 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     ax.grid(True)
     st.pyplot(fig)
 
-    # Calcul des gains/pertes
-    buy_prices = df[df['signal'] == 'Buy']['Close'].tolist()
-    sell_prices = df[df['signal'] == 'Sell']['Close'].tolist()
-    paired_trades = zip(buy_prices[:len(sell_prices)], sell_prices)
-    profits = [sell - buy for buy, sell in paired_trades]
-    total_profit = sum(profits)
-    if profits:
+    if buy_prices and sell_prices:
+        paired = zip(buy_prices[:len(sell_prices)], sell_prices)
+        profits = [sell - buy for buy, sell in paired]
+        total_profit = sum(profits)
         st.subheader("💰 Résumé des gains/pertes théoriques")
         st.write(f"Nombre de trades : {len(profits)}")
         st.write(f"Gains/Pertes cumulés : {total_profit:.2f} $")
-        st.write(f"Rendement moyen par trade : {total_profit / len(profits):.2f} $")
+        average_profit = total_profit / len(profits) if profits else 0
+        st.write(f"Rendement moyen par trade : {average_profit:.2f} $")
     else:
         st.info("Pas assez de signaux Buy/Sell pour calculer les gains/pertes.")
 
