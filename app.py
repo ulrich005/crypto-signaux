@@ -54,35 +54,7 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
         elif close_series.iloc[i] < close_series.iloc[i-1] and close_series.iloc[i-1] < close_series.iloc[i-2]:
             df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
 
-    
-
-    def decision(row):
-    try:
-        rsi = row['rsi'].item() if hasattr(row['rsi'], 'item') else row['rsi']
-        macd = row['macd'].item() if hasattr(row['macd'], 'item') else row['macd']
-        ema12 = row['ema_12'].item() if hasattr(row['ema_12'], 'item') else row['ema_12']
-        ema26 = row['ema_26'].item() if hasattr(row['ema_26'], 'item') else row['ema_26']
-
-        if pd.isna(rsi) or pd.isna(macd) or pd.isna(ema12) or pd.isna(ema26):
-            return "HOLD"
-
-        
-    except Exception:
-        return "HOLD"
-
-    last_row = df.iloc[-1]
-    signal = decision(last_row)
-
     st.title(f"📊 {crypto_name} – Analyse Technique")
-    if signal == "BUY":
-        st.success(f"📈 Signal actuel : {signal} – Bon moment pour acheter.")
-    elif signal == "SELL":
-        st.error(f"📉 Signal actuel : {signal} – Risque de baisse.")
-    else:
-        st.warning(f"⏸ Signal actuel : {signal} – Attente ou consolidation.")
-
-    trend = "📈 Tendance haussière" if last_row['ema_12'] > last_row['ema_26'] else "📉 Tendance baissière"
-    st.markdown(f"### {trend}")
 
     st.subheader("📋 Données techniques récentes")
     if signal_filter != "Tous":
@@ -107,3 +79,4 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
 
     csv = df.to_csv().encode('utf-8')
     st.download_button("📥 Télécharger les données", csv, f"{ticker}_signaux.csv", "text/csv")
+
