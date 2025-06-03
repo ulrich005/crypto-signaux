@@ -17,7 +17,7 @@ crypto_options = {
     'XRP': 'XRP-USD'
 }
 
-# Paramètres utilisateurs
+# Sidebar
 st.sidebar.header("Paramètres")
 crypto_name = st.sidebar.selectbox("Choisir une crypto", list(crypto_options.keys()))
 ticker = crypto_options[crypto_name]
@@ -31,10 +31,10 @@ if df.empty:
     st.error("Aucune donnée disponible pour cette période.")
     st.stop()
 
-# Convertir proprement en Series 1D
+# Ferme bien la Series
 close_series = pd.Series(df['Close'].values.flatten(), index=df.index)
 
-# Indicateurs techniques
+# Ajouter indicateurs
 df['rsi'] = ta.momentum.RSIIndicator(close=close_series).rsi()
 df['macd'] = ta.trend.MACD(close=close_series).macd()
 df['sma'] = ta.trend.SMAIndicator(close=close_series, window=14).sma_indicator()
@@ -47,7 +47,7 @@ df['bb_lower'] = bb.bollinger_lband()
 df['bb_mavg'] = bb.bollinger_mavg()
 df.dropna(inplace=True)
 
-# Génération des signaux
+# Générer signaux simples
 df['signal'] = 'Hold'
 for i in range(2, len(df)):
     if close_series.iloc[i] > close_series.iloc[i-1] and close_series.iloc[i-1] > close_series.iloc[i-2]:
@@ -55,13 +55,33 @@ for i in range(2, len(df)):
     elif close_series.iloc[i] < close_series.iloc[i-1] and close_series.iloc[i-1] < close_series.iloc[i-2]:
         df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
 
-# Filtrer selon le choix
+# Appliquer filtre utilisateur
 if signal_filter != "Tous":
     df = df[df['signal'] == signal_filter]
 
-# Affichage
-st.title(f"📈 Signaux de trading : {crypto_name} ({ticker})")
-st.write(f"Période sélectionnée : {start_date} → {end_date}")
+# 💡 Nouvelle stratégie de décision
+def decision(row):
+    if row['rsi'] < 30 and row['macd'] > 0 and row['ema_12'] > row['ema_26']:
+        return "BUY"
+    elif row['rsi'] > 70 and row['macd'] < 0 and row['ema_12'] < row['ema_26']:
+        return "SELL"
+    else:
+        return "HOLD"
+
+latest = df.iloc[-1]
+decision_signal = decision(latest)
+
+# Affichage du signal
+st.title(f"📊 Recommandation de trading pour {crypto_name}")
+if decision_signal == "BUY":
+    st.success(f"📈 Signal actuel : {decision_signal} – Conditions favorables à l'achat.")
+elif decision_signal == "SELL":
+    st.error(f"📉 Signal actuel : {decision_signal} – Risque élevé, possible retournement.")
+else:
+    st.warning(f"⏸ Signal actuel : {decision_signal} – Attendre confirmation.")
+
+# Tableau des indicateurs
+st.subheader("📋 Données techniques récentes")
 st.dataframe(df[['Close', 'rsi', 'macd', 'sma', 'ema_12', 'ema_26', 'bb_upper', 'bb_lower', 'signal']].tail(10))
 
 # Graphique
@@ -71,12 +91,9 @@ ax.plot(df.index, df['ema_12'], label='EMA 12', linestyle='--', color='orange')
 ax.plot(df.index, df['ema_26'], label='EMA 26', linestyle='--', color='red')
 ax.plot(df.index, df['bb_upper'], label='Bollinger Haut', linestyle=':', color='gray')
 ax.plot(df.index, df['bb_lower'], label='Bollinger Bas', linestyle=':', color='gray')
-
-# Signaux
 ax.scatter(df[df['signal'] == 'Buy'].index, df[df['signal'] == 'Buy']['Close'], label='Buy', marker='^', color='green')
 ax.scatter(df[df['signal'] == 'Sell'].index, df[df['signal'] == 'Sell']['Close'], label='Sell', marker='v', color='red')
-
-ax.set_title(f"Graphique avec signaux : {ticker}")
+ax.set_title(f"Graphique avec indicateurs pour {ticker}")
 ax.set_xlabel("Date")
 ax.set_ylabel("Prix ($)")
 ax.legend()
