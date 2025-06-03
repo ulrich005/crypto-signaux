@@ -45,7 +45,6 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     df['pct_change_3d'] = df['Close'].pct_change(periods=3) * 100
     df.dropna(inplace=True)
 
-    # STRATÉGIE INTELLIGENTE
     def get_smart_signal(row):
         if (
             row['ema_12'] > row['ema_26'] and
@@ -61,12 +60,18 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
             return 'Sell'
         return 'Hold'
 
-    # Appliquer la stratégie sans erreur
     df['signal'] = 'Hold'
-    df_valid = df.dropna(subset=['ema_12', 'ema_26', 'rsi', 'macd', 'macd_signal'])
+
+    # ✅ Vérification des colonnes requises
+    required_cols = ['ema_12', 'ema_26', 'rsi', 'macd', 'macd_signal']
+    missing = [col for col in required_cols if col not in df.columns]
+    if missing:
+        st.error(f"Colonnes manquantes dans les indicateurs : {missing}")
+        st.stop()
+
+    df_valid = df.dropna(subset=required_cols)
     df.loc[df_valid.index, 'signal'] = df_valid.apply(get_smart_signal, axis=1)
 
-    # Calcul des profits
     buy_prices = []
     sell_prices = []
     for i in range(len(df)):
@@ -116,4 +121,3 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
 
     csv = df.to_csv().encode('utf-8')
     st.download_button("📥 Télécharger les données", csv, f"{ticker}_signaux.csv", "text/csv")
-
