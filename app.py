@@ -54,9 +54,6 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
         elif close_series.iloc[i] < close_series.iloc[i-1] and close_series.iloc[i-1] < close_series.iloc[i-2]:
             df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
 
-    if signal_filter != "Tous":
-        df = df[df['signal'] == signal_filter]
-
     def decision(row):
         if row['rsi'] < 30 and row['macd'] > 0 and row['ema_12'] > row['ema_26']:
             return "BUY"
@@ -80,6 +77,9 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     st.markdown(f"### {trend}")
 
     st.subheader("📋 Données techniques récentes")
+    if signal_filter != "Tous":
+        df = df[df['signal'] == signal_filter]
+
     st.dataframe(df[['Close', 'rsi', 'macd', 'sma', 'ema_12', 'ema_26', 'bb_upper', 'bb_lower', 'pct_change_3d', 'signal']].tail(10))
 
     fig, ax = plt.subplots(figsize=(14, 6))
