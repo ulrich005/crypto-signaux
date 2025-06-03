@@ -5,17 +5,31 @@ import matplotlib.pyplot as plt
 import ta
 from datetime import datetime
 
-# Configuration
+# Configuration de l'application Streamlit
 st.set_page_config(page_title="Crypto Signal App", layout="wide")
 
-# Liste des cryptos
+# Liste des cryptos populaires avec leurs tickers Yahoo Finance
 crypto_options = {
-    'Bitcoin': 'BTC-USD',
-    'Ethereum': 'ETH-USD',
-    'Solana': 'SOL-USD',
-    'Cardano': 'ADA-USD',
-    'Dogecoin': 'DOGE-USD',
-    'XRP': 'XRP-USD'
+    'Bitcoin (BTC)': 'BTC-USD',
+    'Ethereum (ETH)': 'ETH-USD',
+    'Tether (USDT)': 'USDT-USD',
+    'BNB': 'BNB-USD',
+    'Solana (SOL)': 'SOL-USD',
+    'XRP': 'XRP-USD',
+    'USDC': 'USDC-USD',
+    'Cardano (ADA)': 'ADA-USD',
+    'Dogecoin (DOGE)': 'DOGE-USD',
+    'Avalanche (AVAX)': 'AVAX-USD',
+    'Shiba Inu (SHIB)': 'SHIB-USD',
+    'Polkadot (DOT)': 'DOT-USD',
+    'TRON (TRX)': 'TRX-USD',
+    'Toncoin (TON)': 'TON11419-USD',
+    'Chainlink (LINK)': 'LINK-USD',
+    'Polygon (MATIC)': 'MATIC-USD',
+    'Litecoin (LTC)': 'LTC-USD',
+    'Uniswap (UNI)': 'UNI7083-USD',
+    'Internet Computer (ICP)': 'ICP-USD',
+    'Stellar (XLM)': 'XLM-USD'
 }
 
 # Barre latérale
@@ -26,7 +40,7 @@ start_date = st.sidebar.date_input("Date de début", pd.to_datetime("2023-01-01"
 end_date = st.sidebar.date_input("Date de fin", datetime(2025, 6, 2))
 signal_filter = st.sidebar.radio("Filtrer les signaux", ["Tous", "Buy", "Sell"])
 
-# Bouton d’actualisation
+# Bouton d’actualisation des données
 if st.sidebar.button("🔄 Actualiser les signaux"):
     df = yf.download(ticker, start=start_date, end=end_date)[['Close']].copy()
     if df.empty:
@@ -48,7 +62,7 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     df['bb_mavg'] = bb.bollinger_mavg()
     df.dropna(inplace=True)
 
-    # Signaux simples
+    # Définition des signaux simples
     df['signal'] = 'Hold'
     for i in range(2, len(df)):
         if close_series.iloc[i] > close_series.iloc[i-1] and close_series.iloc[i-1] > close_series.iloc[i-2]:
@@ -56,11 +70,11 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
         elif close_series.iloc[i] < close_series.iloc[i-1] and close_series.iloc[i-1] < close_series.iloc[i-2]:
             df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
 
-    # Filtrage
+    # Filtrage selon le signal choisi
     if signal_filter != "Tous":
         df = df[df['signal'] == signal_filter]
 
-    # Stratégie intelligente
+    # Fonction de décision basée sur les indicateurs
     def decision(row):
         if row['rsi'] < 30 and row['macd'] > 0 and row['ema_12'] > row['ema_26']:
             return "BUY"
@@ -69,7 +83,6 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
         else:
             return "HOLD"
 
-    # Appliquer décision
     decision_signal = decision({
         'rsi': float(df['rsi'].iloc[-1]),
         'macd': float(df['macd'].iloc[-1]),
@@ -77,7 +90,7 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
         'ema_26': float(df['ema_26'].iloc[-1])
     })
 
-    # Résultat du signal
+    # Affichage du signal
     st.title(f"📊 Recommandation de trading pour {crypto_name}")
     if decision_signal == "BUY":
         st.success(f"📈 Signal actuel : {decision_signal} – Conditions favorables à l'achat.")
@@ -86,11 +99,11 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     else:
         st.warning(f"⏸ Signal actuel : {decision_signal} – Attendre confirmation.")
 
-    # Tableau
+    # Affichage des données
     st.subheader("📋 Données techniques récentes")
     st.dataframe(df[['Close', 'rsi', 'macd', 'sma', 'ema_12', 'ema_26', 'bb_upper', 'bb_lower', 'signal']].tail(10))
 
-    # Graphique
+    # Graphique avec signaux
     fig, ax = plt.subplots(figsize=(14, 6))
     ax.plot(df.index, df['Close'], label='Clôture', color='blue')
     ax.plot(df.index, df['ema_12'], label='EMA 12', linestyle='--', color='orange')
@@ -106,6 +119,6 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     ax.grid(True)
     st.pyplot(fig)
 
-    # Export CSV
+    # Téléchargement CSV
     csv = df.to_csv().encode('utf-8')
-    st.download_button("📥 Télécharger CSV", csv, f"{ticker}_signaux.csv", "text/csv")
+    st.download_button("📅 Télécharger CSV", csv, f"{ticker}_signaux.csv", "text/csv")
