@@ -48,6 +48,9 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     df.dropna(inplace=True)
 
     df['signal'] = 'Hold'
+    
+            sell_prices.append(df['Close'].iloc[i])
+
 buy_prices = []
 sell_prices = []
 for i in range(2, len(df)):
@@ -55,8 +58,7 @@ for i in range(2, len(df)):
         df.iloc[i, df.columns.get_loc('signal')] = 'Buy'
         buy_prices.append(df['Close'].iloc[i])
     elif close_series.iloc[i] < close_series.iloc[i-1] and close_series.iloc[i-1] < close_series.iloc[i-2]:
-        df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
-        sell_prices.append(df['Close'].iloc[i])
+                sell_prices.append(df['Close'].iloc[i])
             df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
 
     
@@ -65,8 +67,7 @@ for i in range(2, len(df)):
     
     st.title(f"📊 {crypto_name} – Analyse Technique")
     
-        st.warning(f"⏸ Signal actuel : {signal} – Attente ou consolidation.")
-
+        
     
 
     st.subheader("📋 Données techniques récentes")
