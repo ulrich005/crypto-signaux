@@ -45,19 +45,34 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     df['pct_change_3d'] = df['Close'].pct_change(periods=3) * 100
     df.dropna(inplace=True)
 
-    df['signal'] = 'Hold'
+    # === STRATÉGIE DE TRADING INTELLIGENTE ===
+    def get_smart_signal(row):
+        if (
+            row['ema_12'] > row['ema_26'] and
+            row['rsi'] < 35 and
+            row['macd'] > row['macd_signal']
+        ):
+            return 'Buy'
+        elif (
+            row['ema_12'] < row['ema_26'] and
+            row['rsi'] > 65 and
+            row['macd'] < row['macd_signal']
+        ):
+            return 'Sell'
+        return 'Hold'
+
+    df['signal'] = df.apply(get_smart_signal, axis=1)
+
+    # CALCUL DES PROFITS
     buy_prices = []
     sell_prices = []
-
-    for i in range(2, len(df)):
-        if close_series.iloc[i] > close_series.iloc[i-1] and close_series.iloc[i-1] > close_series.iloc[i-2]:
-            df.iloc[i, df.columns.get_loc('signal')] = 'Buy'
+    for i in range(len(df)):
+        if df['signal'].iloc[i] == 'Buy':
             buy_prices.append(df['Close'].iloc[i])
-        elif close_series.iloc[i] < close_series.iloc[i-1] and close_series.iloc[i-1] < close_series.iloc[i-2]:
-            df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
+        elif df['signal'].iloc[i] == 'Sell':
             sell_prices.append(df['Close'].iloc[i])
 
-    st.title(f"📊 {crypto_name} – Analyse Technique")
+    st.title(f"📊 {crypto_name} – Analyse Technique Intelligente")
 
     st.subheader("📋 Données techniques récentes")
     if signal_filter != "Tous":
@@ -84,15 +99,15 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
         paired = zip(buy_prices[:len(sell_prices)], sell_prices)
         profits = [sell - buy for buy, sell in paired]
         total_profit = sum(profits)
+        average_profit = total_profit / len(profits) if profits else 0
+
         st.subheader("💰 Résumé des gains/pertes théoriques")
         st.write(f"Nombre de trades : {len(profits)}")
         st.write(f"Gains/Pertes cumulés : {total_profit:.2f} $")
-        average_profit = total_profit / len(profits) if profits else 0
         st.write(f"Rendement moyen par trade : {average_profit:.2f} $")
     else:
         st.info("Pas assez de signaux Buy/Sell pour calculer les gains/pertes.")
 
     csv = df.to_csv().encode('utf-8')
     st.download_button("📥 Télécharger les données", csv, f"{ticker}_signaux.csv", "text/csv")
-
 
