@@ -31,10 +31,10 @@ if df.empty:
     st.error("Aucune donnée disponible pour cette période.")
     st.stop()
 
-# Ferme bien la Series
+# Convertir en Series propre
 close_series = pd.Series(df['Close'].values.flatten(), index=df.index)
 
-# Ajouter indicateurs
+# Indicateurs
 df['rsi'] = ta.momentum.RSIIndicator(close=close_series).rsi()
 df['macd'] = ta.trend.MACD(close=close_series).macd()
 df['sma'] = ta.trend.SMAIndicator(close=close_series, window=14).sma_indicator()
@@ -55,23 +55,28 @@ for i in range(2, len(df)):
     elif close_series.iloc[i] < close_series.iloc[i-1] and close_series.iloc[i-1] < close_series.iloc[i-2]:
         df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
 
-# Appliquer filtre utilisateur
+# Filtrage
 if signal_filter != "Tous":
     df = df[df['signal'] == signal_filter]
 
-# 💡 Nouvelle stratégie de décision
-def decision(row):
-    if row['rsi'] < 30 and row['macd'] > 0 and row['ema_12'] > row['ema_26']:
+# 💡 Nouvelle fonction stratégie
+def decision(row_dict):
+    if row_dict['rsi'] < 30 and row_dict['macd'] > 0 and row_dict['ema_12'] > row_dict['ema_26']:
         return "BUY"
-    elif row['rsi'] > 70 and row['macd'] < 0 and row['ema_12'] < row['ema_26']:
+    elif row_dict['rsi'] > 70 and row_dict['macd'] < 0 and row_dict['ema_12'] < row_dict['ema_26']:
         return "SELL"
     else:
         return "HOLD"
 
-latest = df.iloc[-1]
-decision_signal = decision(latest)
+# Appliquer décision avec valeurs explicites
+decision_signal = decision({
+    'rsi': float(df['rsi'].iloc[-1]),
+    'macd': float(df['macd'].iloc[-1]),
+    'ema_12': float(df['ema_12'].iloc[-1]),
+    'ema_26': float(df['ema_26'].iloc[-1])
+})
 
-# Affichage du signal
+# Affichage
 st.title(f"📊 Recommandation de trading pour {crypto_name}")
 if decision_signal == "BUY":
     st.success(f"📈 Signal actuel : {decision_signal} – Conditions favorables à l'achat.")
