@@ -3,12 +3,11 @@ import pandas as pd
 import yfinance as yf
 import matplotlib.pyplot as plt
 import ta
-from io import StringIO
 
-# Config
+# Config Streamlit
 st.set_page_config(page_title="Crypto Signal App", layout="wide")
 
-# Liste des cryptos disponibles
+# Cryptos disponibles
 crypto_options = {
     'Bitcoin': 'BTC-USD',
     'Ethereum': 'ETH-USD',
@@ -18,7 +17,7 @@ crypto_options = {
     'XRP': 'XRP-USD'
 }
 
-# Sidebar : sélection
+# Barre latérale
 st.sidebar.header("Paramètres")
 crypto_name = st.sidebar.selectbox("Choisir une crypto", list(crypto_options.keys()))
 ticker = crypto_options[crypto_name]
@@ -32,14 +31,16 @@ if df.empty:
     st.error("Aucune donnée disponible pour cette période.")
     st.stop()
 
-# Calculs
-df[['Close']].squeeze()
+# 🔧 Correction ici : convertir en Series 1D
+close_series = df[['Close']].squeeze()
+
+# Ajouter les indicateurs
 df['rsi'] = ta.momentum.RSIIndicator(close=close_series).rsi()
 df['macd'] = ta.trend.MACD(close=close_series).macd()
 df['sma'] = ta.trend.SMAIndicator(close=close_series, window=14).sma_indicator()
 df.dropna(inplace=True)
 
-# Signaux
+# Générer les signaux
 df['signal'] = 'Hold'
 for i in range(2, len(df)):
     if df['Close'].iloc[i] > df['Close'].iloc[i-1] > df['Close'].iloc[i-2]:
@@ -47,7 +48,7 @@ for i in range(2, len(df)):
     elif df['Close'].iloc[i] < df['Close'].iloc[i-1] < df['Close'].iloc[i-2]:
         df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
 
-# Appliquer le filtre
+# Filtrer selon le signal choisi
 if signal_filter != "Tous":
     df = df[df['signal'] == signal_filter]
 
@@ -68,6 +69,6 @@ ax.legend()
 ax.grid(True)
 st.pyplot(fig)
 
-# Export CSV
+# Bouton de téléchargement CSV
 csv = df.to_csv().encode('utf-8')
 st.download_button("📥 Télécharger CSV", csv, f"{ticker}_signaux.csv", "text/csv")
