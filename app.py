@@ -48,13 +48,26 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     df.dropna(inplace=True)
 
     df['signal'] = 'Hold'
-    for i in range(2, len(df)):
-        if close_series.iloc[i] > close_series.iloc[i-1] and close_series.iloc[i-1] > close_series.iloc[i-2]:
-            df.iloc[i, df.columns.get_loc('signal')] = 'Buy'
-        elif close_series.iloc[i] < close_series.iloc[i-1] and close_series.iloc[i-1] < close_series.iloc[i-2]:
+buy_prices = []
+sell_prices = []
+for i in range(2, len(df)):
+    if close_series.iloc[i] > close_series.iloc[i-1] and close_series.iloc[i-1] > close_series.iloc[i-2]:
+        df.iloc[i, df.columns.get_loc('signal')] = 'Buy'
+        buy_prices.append(df['Close'].iloc[i])
+    elif close_series.iloc[i] < close_series.iloc[i-1] and close_series.iloc[i-1] < close_series.iloc[i-2]:
+        df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
+        sell_prices.append(df['Close'].iloc[i])
             df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
 
+    
+
+    
+    
     st.title(f"📊 {crypto_name} – Analyse Technique")
+    
+        st.warning(f"⏸ Signal actuel : {signal} – Attente ou consolidation.")
+
+    
 
     st.subheader("📋 Données techniques récentes")
     if signal_filter != "Tous":
@@ -77,6 +90,18 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     ax.grid(True)
     st.pyplot(fig)
 
+    if buy_prices and sell_prices:
+        # Pour correspondre Buy/Sell par paire
+        paired = zip(buy_prices[:len(sell_prices)], sell_prices)
+        profits = [sell - buy for buy, sell in paired]
+        total_profit = sum(profits)
+        st.subheader("💰 Résumé des gains/pertes théoriques")
+        st.write(f"Nombre de trades : {len(profits)}")
+        st.write(f"Gains/Pertes cumulés : {total_profit:.2f} $")
+        average_profit = total_profit / len(profits) if profits else 0
+        st.write(f"Rendement moyen par trade : {average_profit:.2f} $")
+    else:
+        st.info("Pas assez de signaux Buy/Sell pour calculer les gains/pertes.")
+
     csv = df.to_csv().encode('utf-8')
     st.download_button("📥 Télécharger les données", csv, f"{ticker}_signaux.csv", "text/csv")
-
