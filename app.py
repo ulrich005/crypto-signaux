@@ -4,10 +4,10 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 import ta
 
-# Configuration Streamlit
+# Configuration de la page Streamlit
 st.set_page_config(page_title="Crypto Signal App", layout="wide")
 
-# Choix de cryptomonnaies
+# Liste des cryptomonnaies disponibles
 crypto_options = {
     'Bitcoin': 'BTC-USD',
     'Ethereum': 'ETH-USD',
@@ -17,7 +17,7 @@ crypto_options = {
     'XRP': 'XRP-USD'
 }
 
-# Interface utilisateur - barre latérale
+# Barre latérale pour les paramètres
 st.sidebar.header("Paramètres")
 crypto_name = st.sidebar.selectbox("Choisir une crypto", list(crypto_options.keys()))
 ticker = crypto_options[crypto_name]
@@ -25,16 +25,16 @@ start_date = st.sidebar.date_input("Date de début", pd.to_datetime("2023-01-01"
 end_date = st.sidebar.date_input("Date de fin", pd.to_datetime("2025-01-01"))
 signal_filter = st.sidebar.radio("Filtrer les signaux", ["Tous", "Buy", "Sell"])
 
-# Télécharger les données
+# Télécharger les données de Yahoo Finance
 df = yf.download(ticker, start=start_date, end=end_date)[['Close']].copy()
 if df.empty:
     st.error("Aucune donnée disponible pour cette période.")
     st.stop()
 
-# Convertir en vraie Series (très important)
-close_series = df['Close'].copy()
+# Forcer la conversion en Series 1D pour les indicateurs (anti-bug total)
+close_series = pd.Series(df['Close'].values.flatten(), index=df.index)
 
-# Calcul des indicateurs techniques
+# Ajouter les indicateurs techniques
 df['rsi'] = ta.momentum.RSIIndicator(close=close_series).rsi()
 df['macd'] = ta.trend.MACD(close=close_series).macd()
 df['sma'] = ta.trend.SMAIndicator(close=close_series, window=14).sma_indicator()
@@ -48,16 +48,16 @@ for i in range(2, len(df)):
     elif close_series.iloc[i] < close_series.iloc[i-1] and close_series.iloc[i-1] < close_series.iloc[i-2]:
         df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
 
-# Filtrer les signaux selon l'utilisateur
+# Appliquer le filtre de signaux
 if signal_filter != "Tous":
     df = df[df['signal'] == signal_filter]
 
-# Affichage des données
+# Affichage du tableau
 st.title(f"📈 Signaux de trading : {crypto_name} ({ticker})")
 st.write(f"Période sélectionnée : {start_date} → {end_date}")
 st.dataframe(df[['Close', 'rsi', 'macd', 'sma', 'signal']].tail(10))
 
-# Graphique avec signaux Buy/Sell
+# Graphique avec les signaux
 fig, ax = plt.subplots(figsize=(14, 5))
 ax.plot(df.index, df['Close'], label='Prix de clôture', color='blue')
 ax.scatter(df[df['signal'] == 'Buy'].index, df[df['signal'] == 'Buy']['Close'], label='Buy', marker='^', color='green')
@@ -69,6 +69,6 @@ ax.legend()
 ax.grid(True)
 st.pyplot(fig)
 
-# Bouton pour télécharger les données filtrées
+# Téléchargement des données en CSV
 csv = df.to_csv().encode('utf-8')
 st.download_button("📥 Télécharger CSV", csv, f"{ticker}_signaux.csv", "text/csv")
