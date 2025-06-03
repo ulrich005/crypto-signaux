@@ -48,31 +48,25 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     df.dropna(inplace=True)
 
     df['signal'] = 'Hold'
+    buy_prices = []
+    sell_prices = []
 
-buy_prices = []
-sell_prices = []
-for i in range(2, len(df)):
-    if close_series.iloc[i] > close_series.iloc[i-1] and close_series.iloc[i-1] > close_series.iloc[i-2]:
-        df.iloc[i, df.columns.get_loc('signal')] = 'Buy'
-        buy_prices.append(df['Close'].iloc[i])
-    elif close_series.iloc[i] < close_series.iloc[i-1] and close_series.iloc[i-1] < close_series.iloc[i-2]:
-        df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
-        sell_prices.append(df['Close'].iloc[i])
+    for i in range(2, len(df)):
+        if close_series.iloc[i] > close_series.iloc[i-1] and close_series.iloc[i-1] > close_series.iloc[i-2]:
+            df.iloc[i, df.columns.get_loc('signal')] = 'Buy'
+            buy_prices.append(df['Close'].iloc[i])
+        elif close_series.iloc[i] < close_series.iloc[i-1] and close_series.iloc[i-1] < close_series.iloc[i-2]:
+            df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
+            sell_prices.append(df['Close'].iloc[i])
 
-    
-
-    
-    
     st.title(f"📊 {crypto_name} – Analyse Technique")
-    
-        
-    
 
     st.subheader("📋 Données techniques récentes")
     if signal_filter != "Tous":
         df = df[df['signal'] == signal_filter]
 
-    st.dataframe(df[['Close', 'rsi', 'macd', 'sma', 'ema_12', 'ema_26', 'bb_upper', 'bb_lower', 'pct_change_3d', 'signal']].tail(10))
+    st.dataframe(df[['Close', 'rsi', 'macd', 'sma', 'ema_12', 'ema_26',
+                     'bb_upper', 'bb_lower', 'pct_change_3d', 'signal']].tail(10))
 
     fig, ax = plt.subplots(figsize=(14, 6))
     ax.plot(df.index, df['Close'], label='Clôture', color='blue')
@@ -80,8 +74,10 @@ for i in range(2, len(df)):
     ax.plot(df.index, df['ema_26'], label='EMA 26', linestyle='--', color='red')
     ax.plot(df.index, df['bb_upper'], label='Bollinger Haut', linestyle=':', color='gray')
     ax.plot(df.index, df['bb_lower'], label='Bollinger Bas', linestyle=':', color='gray')
-    ax.scatter(df[df['signal'] == 'Buy'].index, df[df['signal'] == 'Buy']['Close'], label='Buy', marker='^', color='green')
-    ax.scatter(df[df['signal'] == 'Sell'].index, df[df['signal'] == 'Sell']['Close'], label='Sell', marker='v', color='red')
+    ax.scatter(df[df['signal'] == 'Buy'].index, df[df['signal'] == 'Buy']['Close'],
+               label='Buy', marker='^', color='green')
+    ax.scatter(df[df['signal'] == 'Sell'].index, df[df['signal'] == 'Sell']['Close'],
+               label='Sell', marker='v', color='red')
     ax.set_title(f"Graphique indicateurs – {crypto_name}")
     ax.set_xlabel("Date")
     ax.set_ylabel("Prix ($)")
@@ -90,17 +86,18 @@ for i in range(2, len(df)):
     st.pyplot(fig)
 
     if buy_prices and sell_prices:
-        # Pour correspondre Buy/Sell par paire
         paired = zip(buy_prices[:len(sell_prices)], sell_prices)
         profits = [sell - buy for buy, sell in paired]
         total_profit = sum(profits)
+        average_profit = total_profit / len(profits) if profits else 0
+
         st.subheader("💰 Résumé des gains/pertes théoriques")
         st.write(f"Nombre de trades : {len(profits)}")
         st.write(f"Gains/Pertes cumulés : {total_profit:.2f} $")
-        average_profit = total_profit / len(profits) if profits else 0
         st.write(f"Rendement moyen par trade : {average_profit:.2f} $")
     else:
         st.info("Pas assez de signaux Buy/Sell pour calculer les gains/pertes.")
 
     csv = df.to_csv().encode('utf-8')
     st.download_button("📥 Télécharger les données", csv, f"{ticker}_signaux.csv", "text/csv")
+
