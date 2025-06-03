@@ -4,10 +4,10 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 import ta
 
-# Config Streamlit
+# Configuration Streamlit
 st.set_page_config(page_title="Crypto Signal App", layout="wide")
 
-# Cryptos disponibles
+# Choix de cryptomonnaies
 crypto_options = {
     'Bitcoin': 'BTC-USD',
     'Ethereum': 'ETH-USD',
@@ -17,7 +17,7 @@ crypto_options = {
     'XRP': 'XRP-USD'
 }
 
-# Barre latérale
+# Interface utilisateur - barre latérale
 st.sidebar.header("Paramètres")
 crypto_name = st.sidebar.selectbox("Choisir une crypto", list(crypto_options.keys()))
 ticker = crypto_options[crypto_name]
@@ -31,33 +31,33 @@ if df.empty:
     st.error("Aucune donnée disponible pour cette période.")
     st.stop()
 
-# Sélectionner la série de clôture (corrigé pour éviter erreur 1D)
-close_series = df[['Close']].squeeze()
+# Convertir en vraie Series (très important)
+close_series = df['Close'].copy()
 
-# Ajouter les indicateurs techniques
+# Calcul des indicateurs techniques
 df['rsi'] = ta.momentum.RSIIndicator(close=close_series).rsi()
 df['macd'] = ta.trend.MACD(close=close_series).macd()
 df['sma'] = ta.trend.SMAIndicator(close=close_series, window=14).sma_indicator()
 df.dropna(inplace=True)
 
-# Générer les signaux
+# Génération des signaux simples
 df['signal'] = 'Hold'
 for i in range(2, len(df)):
-    if df['Close'].iloc[i] > df['Close'].iloc[i-1] and df['Close'].iloc[i-1] > df['Close'].iloc[i-2]:
+    if close_series.iloc[i] > close_series.iloc[i-1] and close_series.iloc[i-1] > close_series.iloc[i-2]:
         df.iloc[i, df.columns.get_loc('signal')] = 'Buy'
-    elif df['Close'].iloc[i] < df['Close'].iloc[i-1] and df['Close'].iloc[i-1] < df['Close'].iloc[i-2]:
+    elif close_series.iloc[i] < close_series.iloc[i-1] and close_series.iloc[i-1] < close_series.iloc[i-2]:
         df.iloc[i, df.columns.get_loc('signal')] = 'Sell'
 
-# Appliquer le filtre de signal
+# Filtrer les signaux selon l'utilisateur
 if signal_filter != "Tous":
     df = df[df['signal'] == signal_filter]
 
-# Affichage de la table
+# Affichage des données
 st.title(f"📈 Signaux de trading : {crypto_name} ({ticker})")
 st.write(f"Période sélectionnée : {start_date} → {end_date}")
 st.dataframe(df[['Close', 'rsi', 'macd', 'sma', 'signal']].tail(10))
 
-# Graphique des prix avec signaux
+# Graphique avec signaux Buy/Sell
 fig, ax = plt.subplots(figsize=(14, 5))
 ax.plot(df.index, df['Close'], label='Prix de clôture', color='blue')
 ax.scatter(df[df['signal'] == 'Buy'].index, df[df['signal'] == 'Buy']['Close'], label='Buy', marker='^', color='green')
@@ -69,7 +69,6 @@ ax.legend()
 ax.grid(True)
 st.pyplot(fig)
 
-# Bouton de téléchargement
+# Bouton pour télécharger les données filtrées
 csv = df.to_csv().encode('utf-8')
 st.download_button("📥 Télécharger CSV", csv, f"{ticker}_signaux.csv", "text/csv")
-
