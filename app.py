@@ -23,7 +23,7 @@ end_date = st.sidebar.date_input("Date de fin", datetime(2025, 6, 2))
 signal_filter = st.sidebar.radio("Filtrer les signaux", ["Tous", "Buy", "Sell"])
 
 if st.sidebar.button("🔄 Actualiser les signaux"):
-    df = yf.download(ticker, start=start_date, end=end_date, interval='1d')[['Close']].copy()
+    df = yf.download(ticker, start=start_date, end=end_date)[['Close']].copy()
     if df.empty:
         st.error("Aucune donnée disponible pour cette période.")
         st.stop()
@@ -43,51 +43,41 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     df['bb_lower'] = bb.bollinger_lband()
     df['bb_mavg'] = bb.bollinger_mavg()
     df['pct_change_3d'] = df['Close'].pct_change(periods=3) * 100
+
     df.dropna(inplace=True)
 
     def get_smart_signal(row):
-        if (
-            row['ema_12'] > row['ema_26'] and
-            row['rsi'] < 35 and
-            row['macd'] > row['macd_signal']
-        ):
-            return 'Buy'
-        elif (
-            row['ema_12'] < row['ema_26'] and
-            row['rsi'] > 65 and
-            row['macd'] < row['macd_signal']
-        ):
-            return 'Sell'
+        try:
+            if row['ema_12'] > row['ema_26'] and row['rsi'] < 35 and row['macd'] > row['macd_signal']:
+                return 'Buy'
+            elif row['ema_12'] < row['ema_26'] and row['rsi'] > 65 and row['macd'] < row['macd_signal']:
+                return 'Sell'
+        except:
+            return 'Hold'
         return 'Hold'
 
-    df['signal'] = 'Hold'
+    df['signal'] = df.apply(get_smart_signal, axis=1)
 
-    # ✅ Vérification des colonnes requises
-    required_cols = ['ema_12', 'ema_26', 'rsi', 'macd', 'macd_signal']
-    missing = [col for col in required_cols if col not in df.columns]
-    if missing:
-        st.error(f"Colonnes manquantes dans les indicateurs : {missing}")
-        st.stop()
+    latest_signal = df['signal'].iloc[-1]
+    latest_time = df.index[-1].strftime('%Y-%m-%d')
+    if latest_signal in ['Buy', 'Sell']:
+        st.success(f"🚨 Dernier signal détecté : **{latest_signal}** le {latest_time}")
+    else:
+        st.info(f"🔍 Aucun signal clair actuellement. Dernière analyse du {latest_time}")
 
-    df_valid = df.dropna(subset=required_cols)
-    df.loc[df_valid.index, 'signal'] = df_valid.apply(get_smart_signal, axis=1)
+    df['hour'] = df.index.hour if df.index.freq != 'D' else 0
+    hourly_avg = df.groupby('hour')['pct_change_3d'].mean()
+    if not hourly_avg.empty:
+        best_hour = hourly_avg.idxmax()
+        st.markdown(f"🕐 Historiquement, la variation moyenne est la plus haute vers **{best_hour}h**.")
 
-    buy_prices = []
-    sell_prices = []
-    for i in range(len(df)):
-        if df['signal'].iloc[i] == 'Buy':
-            buy_prices.append(df['Close'].iloc[i])
-        elif df['signal'].iloc[i] == 'Sell':
-            sell_prices.append(df['Close'].iloc[i])
-
-    st.title(f"📊 {crypto_name} – Analyse Technique Intelligente")
+    st.title(f"📊 {crypto_name} – Analyse Technique")
 
     st.subheader("📋 Données techniques récentes")
     if signal_filter != "Tous":
         df = df[df['signal'] == signal_filter]
 
-    st.dataframe(df[['Close', 'rsi', 'macd', 'macd_signal', 'sma', 'ema_12', 'ema_26',
-                     'bb_upper', 'bb_lower', 'pct_change_3d', 'signal']].tail(20))
+    st.dataframe(df[['Close', 'rsi', 'macd', 'macd_signal', 'sma', 'ema_12', 'ema_26', 'bb_upper', 'bb_lower', 'pct_change_3d', 'signal']].tail(10))
 
     fig, ax = plt.subplots(figsize=(14, 6))
     ax.plot(df.index, df['Close'], label='Clôture', color='blue')
@@ -95,10 +85,8 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     ax.plot(df.index, df['ema_26'], label='EMA 26', linestyle='--', color='red')
     ax.plot(df.index, df['bb_upper'], label='Bollinger Haut', linestyle=':', color='gray')
     ax.plot(df.index, df['bb_lower'], label='Bollinger Bas', linestyle=':', color='gray')
-    ax.scatter(df[df['signal'] == 'Buy'].index, df[df['signal'] == 'Buy']['Close'],
-               label='Buy', marker='^', color='green')
-    ax.scatter(df[df['signal'] == 'Sell'].index, df[df['signal'] == 'Sell']['Close'],
-               label='Sell', marker='v', color='red')
+    ax.scatter(df[df['signal'] == 'Buy'].index, df[df['signal'] == 'Buy']['Close'], label='Buy', marker='^', color='green')
+    ax.scatter(df[df['signal'] == 'Sell'].index, df[df['signal'] == 'Sell']['Close'], label='Sell', marker='v', color='red')
     ax.set_title(f"Graphique indicateurs – {crypto_name}")
     ax.set_xlabel("Date")
     ax.set_ylabel("Prix ($)")
@@ -106,18 +94,6 @@ if st.sidebar.button("🔄 Actualiser les signaux"):
     ax.grid(True)
     st.pyplot(fig)
 
-    if buy_prices and sell_prices:
-        paired = zip(buy_prices[:len(sell_prices)], sell_prices)
-        profits = [sell - buy for buy, sell in paired]
-        total_profit = sum(profits)
-        average_profit = total_profit / len(profits) if profits else 0
-
-        st.subheader("💰 Résumé des gains/pertes théoriques")
-        st.write(f"Nombre de trades : {len(profits)}")
-        st.write(f"Gains/Pertes cumulés : {total_profit:.2f} $")
-        st.write(f"Rendement moyen par trade : {average_profit:.2f} $")
-    else:
-        st.info("Pas assez de signaux Buy/Sell pour calculer les gains/pertes.")
-
     csv = df.to_csv().encode('utf-8')
     st.download_button("📥 Télécharger les données", csv, f"{ticker}_signaux.csv", "text/csv")
+
