@@ -33,7 +33,7 @@ if df.empty:
     st.stop()
 
 # Calculs
-close_series = df['Close']
+df[['Close']].squeeze()
 df['rsi'] = ta.momentum.RSIIndicator(close=close_series).rsi()
 df['macd'] = ta.trend.MACD(close=close_series).macd()
 df['sma'] = ta.trend.SMAIndicator(close=close_series, window=14).sma_indicator()
